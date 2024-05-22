@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:convert';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -24,7 +25,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'My Test App',
+          'IMAGE ENCODER',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -54,7 +55,7 @@ class ImagePage extends StatefulWidget {
 }
 
 class _ImagePageState extends State<ImagePage> {
-  late String hexCode = ''; // Initialize with an empty string
+  late String code = ''; // Initialize with an empty string
 
   @override
   void initState() {
@@ -68,21 +69,28 @@ class _ImagePageState extends State<ImagePage> {
       // Read the image file as bytes
       final bytes = await File(imagePath).readAsBytes();
       // Convert bytes to hex string
-      hexCode = bytesToHex(bytes);
+      code = bytesToCode(bytes);
       setState(() {}); // Update the UI
     } catch (e) {
       // Handle any errors that occur during file reading
-      hexCode = "Error reading file: $e";
+      code = "Error reading file: $e";
       setState(() {});
     }
   }
 
-  String bytesToHex(List<int> bytes) {
-    final buffer = StringBuffer();
-    for (var byte in bytes) {
-      buffer.write(byte.toRadixString(16).padLeft(2, '0'));
+  String bytesToCode(List<int> bytes) {
+    int hash = 0;
+    String pw = "";
+    const String charSet = 'abcdefghijklmnopqrstuvwxyaABCDEFGHIJKLMNOPQRSTUVWXYZ!£#?*&';
+    for (var bit in bytes) {
+      hash = (hash + (bit ^ (hash << 5)));
     }
-    return buffer.toString();
+    
+    for (int i = 0; i < 16; i++){
+      pw += charSet[hash % charSet.length];
+      hash ~/= (charSet.length/5);
+    }
+    return pw;
   }
 
   @override
@@ -104,9 +112,9 @@ class _ImagePageState extends State<ImagePage> {
                   maxLines: null,  // Allow for multiple lines
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    labelText: 'Hex Code',
+                    labelText: 'Generated Code',
                   ),
-                  controller: TextEditingController(text: hexCode),
+                  controller: TextEditingController(text: code),
                 ),
               ),
             ),

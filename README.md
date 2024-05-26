@@ -1,4 +1,4 @@
-# tutorial
+# PassPix
 
 A new Flutter project.
 

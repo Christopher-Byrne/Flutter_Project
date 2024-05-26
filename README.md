@@ -1,16 +1,9 @@
 # PassPix
 
-A new Flutter project.
+This my first Flutter and Andriod Application Project.
 
-## Getting Started
+After starting out following an online tutorial I found myself bored with the concept of the app. I was inspired by having to change my password so frequently in work I wanted a way to create secure passwords without needing to keep them in a plain text file to have any chance in remembering them.
+This lead me to the concept of PassPix, an application that takes images from your gallery and uses the byte code as a key to generate complex passwords that are repeatable.
+Remembering what image I use to sign in for me was far simpler and by choosing that image it will always generate the same password. When it comes time to change I just choose a different image. 
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.

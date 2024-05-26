@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:tutorial/pages/home.dart';
+import 'package:passpix/pages/home.dart';
 
-void main() {
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 

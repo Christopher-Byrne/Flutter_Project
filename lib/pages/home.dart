@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -11,10 +14,41 @@ class HomePage extends StatelessWidget {
     final pickedImage = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedImage != null) {
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName = path.basename(pickedImage.path);
+      final savedImage = await File(pickedImage.path).copy('${appDir.path}/$fileName');
+
+
+      final prefs = await SharedPreferences.getInstance();
+      List<String> cachedImages = prefs.getStringList('cached_images') ?? [];
+      cachedImages.add(savedImage.path);
+      await prefs.setStringList('cached_images', cachedImages);
+
+      if (!context.mounted) {
+        return;
+      }
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ImagePage(imagePath: pickedImage.path),
+        ),
+      );
+    }
+  }
+
+  Future<void> _getCachedImages(BuildContext context) async {
+    final localAuth = LocalAuthentication();
+    final isAuthenticated = await localAuth.authenticate(
+      localizedReason: 'Please authenticate to access cached images',
+      options: const AuthenticationOptions(biometricOnly: false),
+    );
+
+    if (isAuthenticated) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CachedImagesPage(),
         ),
       );
     }
@@ -25,10 +59,10 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'IMAGE ENCODER',
+          'PassPix',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -36,9 +70,19 @@ class HomePage extends StatelessWidget {
         centerTitle: true,
       ),
       body: Center(
-        child: ElevatedButton(
-          onPressed: () => _getImageFromGallery(context),
-          child: const Text("Select Image"),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () => _getImageFromGallery(context),
+              child: const Text("Select Image from Gallery"),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _getCachedImages(context),
+              child: const Text("Access Cached Image"),
+            ),
+          ],
         ),
       ),
     );
@@ -51,6 +95,7 @@ class ImagePage extends StatefulWidget {
   const ImagePage({super.key, required this.imagePath});
 
   @override
+  // ignore: library_private_types_in_public_api
   _ImagePageState createState() => _ImagePageState();
 }
 
@@ -81,14 +126,26 @@ class _ImagePageState extends State<ImagePage> {
   String bytesToCode(List<int> bytes) {
     int hash = 0;
     String pw = "";
-    const String charSet = 'abcdefghijklmnopqrstuvwxyaABCDEFGHIJKLMNOPQRSTUVWXYZ!£#?*&';
+    const String charSet = 'abcdefghijk098lmnopqrstuvwxy!£#?*&aABC345DEFGHIJKLMNOP712QRSTUVWXYZ!£#?*&';
+    const String nums = '0987612345';
+    const String special = '!£#?*&';
     for (var bit in bytes) {
       hash = (hash + (bit ^ (hash << 5)));
     }
     
     for (int i = 0; i < 16; i++){
-      pw += charSet[hash % charSet.length];
+      if(i == 7){
+        pw += nums[hash % nums.length];
+        hash ~/= (charSet.length/5);
+      }
+      else if(i == 10){
+        pw += special[hash % special.length];
+        hash ~/= (charSet.length/5);
+      }
+      else{
+        pw += charSet[hash % charSet.length];
       hash ~/= (charSet.length/5);
+      }
     }
     return pw;
   }
@@ -103,7 +160,14 @@ class _ImagePageState extends State<ImagePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Image.file(File(widget.imagePath)),
+            SizedBox(
+              width: 300,  // Set a fixed width
+              height: 300, // Set a fixed height
+              child: Image.file(
+                File(widget.imagePath),
+                fit: BoxFit.contain, // Ensure the image fits within the box
+              ),
+            ),
             const SizedBox(height: 20),
             Expanded(
               child: SingleChildScrollView(
@@ -120,6 +184,63 @@ class _ImagePageState extends State<ImagePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class CachedImagesPage extends StatelessWidget {
+  const CachedImagesPage({super.key});
+
+  Future<List<String>> _loadCachedImages() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('cached_images') ?? [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cached Images'),
+      ),
+      body: FutureBuilder<List<String>>(
+        future: _loadCachedImages(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return const Center(child: Text('Error loading cached images'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No cached images found'));
+          } else {
+            final cachedImages = snapshot.data!;
+            return GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 4.0,
+                mainAxisSpacing: 4.0,
+              ),
+              itemCount: cachedImages.length,
+              itemBuilder: (context, index) {
+                final imagePath = cachedImages[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ImagePage(imagePath: imagePath),
+                      ),
+                    );
+                  },
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            );
+          }
+        },
       ),
     );
   }

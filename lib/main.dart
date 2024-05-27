@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:passpix/pages/home.dart';
+import 'package:passpix/pages/splash.dart';
 
 
 Future<void> main() async {
@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp( 
       debugShowCheckedModeBanner: false,
-      home: HomePage(),
+      home: SplashScreen(),
     );
   }
 }

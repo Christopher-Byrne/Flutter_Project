@@ -45,6 +45,9 @@ class HomePage extends StatelessWidget {
     );
 
     if (isAuthenticated) {
+      if(!context.mounted){
+        return;
+      }
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -54,33 +57,71 @@ class HomePage extends StatelessWidget {
     }
   }
 
+    Future<void> _manageCachedImages(BuildContext context) async {
+    final localAuth = LocalAuthentication();
+    final isAuthenticated = await localAuth.authenticate(
+      localizedReason: 'Please authenticate to access cached images',
+      options: const AuthenticationOptions(biometricOnly: false),
+    );
+
+    if (isAuthenticated) {
+      if(!context.mounted){
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ManageCachedImagesPage(),
+        ),
+      );
+    }
+  }
+
+  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'PassPix',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.black,
+        title: Image.asset('image_assets/logo white.png',
+        fit: BoxFit.contain,
+        height: 55,),
+        backgroundColor: const Color.fromRGBO(0, 150, 250, 1),
         centerTitle: true,
+        shadowColor: Colors.blueGrey,
+        elevation: 10,
+        toolbarHeight: 70,
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: const Color.fromRGBO(0, 150, 250, 1),
+                fixedSize: const Size(250, 40)
+              ),
               onPressed: () => _getImageFromGallery(context),
               child: const Text("Select Image from Gallery"),
             ),
-            const SizedBox(height: 20),
             ElevatedButton(
+               style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: const Color.fromRGBO(0, 150, 250, 1),
+                fixedSize: const Size(250, 40)
+              ),
               onPressed: () => _getCachedImages(context),
               child: const Text("Access Cached Image"),
+            ),
+            ElevatedButton(
+               style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: const Color.fromRGBO(0, 150, 250, 1),
+                fixedSize: const Size(250, 40)
+              ),
+              onPressed: () => _manageCachedImages(context),
+              child: const Text("Manage Cached Images"),
             ),
           ],
         ),
@@ -176,7 +217,7 @@ class _ImagePageState extends State<ImagePage> {
                   maxLines: null,  // Allow for multiple lines
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    labelText: 'Generated Code',
+                    labelText: 'PASSPIX CODE',
                   ),
                   controller: TextEditingController(text: code),
                 ),
@@ -231,6 +272,110 @@ class CachedImagesPage extends StatelessWidget {
                         builder: (context) => ImagePage(imagePath: imagePath),
                       ),
                     );
+                  },
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            );
+          }
+        },
+      ),
+    );
+  }
+}
+
+void showAlertDialog(BuildContext context, List<String> cachedImages, String imagePath) {
+  // Set up the buttons
+  Widget cancelButton = TextButton(
+    child: const Text("Cancel"),
+    onPressed: () {
+      Navigator.of(context).pop();
+    },
+  );
+  Widget continueButton = TextButton(
+    child: const Text("Delete"),
+    onPressed: () async {
+      // Remove the image path from the cached images list
+      cachedImages.remove(imagePath);
+      // Update SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('cached_images', cachedImages);
+      // Delete the file from the file system
+      final file = File(imagePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      if(!context.mounted){
+        return;
+      }
+      // Pop the dialog
+      Navigator.of(context).pop();
+      // Refresh the UI by rebuilding the widget
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const ManageCachedImagesPage()),
+      );
+    },
+  );
+
+  // Set up the AlertDialog
+  AlertDialog alert = AlertDialog(
+    title: const Text("Delete Image"),
+    content: const Text("Are you sure you want to delete this image?"),
+    actions: [
+      cancelButton,
+      continueButton,
+    ],
+  );
+
+  // Show the dialog
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return alert;
+    },
+  );
+}
+
+class ManageCachedImagesPage extends StatelessWidget {
+  const ManageCachedImagesPage({super.key});
+
+  Future<List<String>> _loadCachedImages() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('cached_images') ?? [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Manage Cached Images'),
+      ),
+      body: FutureBuilder<List<String>>(
+        future: _loadCachedImages(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return const Center(child: Text('Error loading cached images'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No cached images found'));
+          } else {
+            final cachedImages = snapshot.data!;
+            return GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 4.0,
+                mainAxisSpacing: 4.0,
+              ),
+              itemCount: cachedImages.length,
+              itemBuilder: (context, index) {
+                final imagePath = cachedImages[index];
+                return GestureDetector(
+                  onLongPress: () {
+                    showAlertDialog(context, cachedImages, imagePath);
                   },
                   child: Image.file(
                     File(imagePath),

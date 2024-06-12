@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:flutter/services.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -23,6 +24,7 @@ class HomePage extends StatelessWidget {
       final prefs = await SharedPreferences.getInstance();
       List<String> cachedImages = prefs.getStringList('cached_images') ?? [];
       cachedImages.add(savedImage.path);
+      cachedImages = cachedImages.toSet().toList();
       await prefs.setStringList('cached_images', cachedImages);
 
       if (!context.mounted) {
@@ -81,6 +83,9 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     return Scaffold(
       appBar: AppBar(
         title: Image.asset('image_assets/logo white.png',
